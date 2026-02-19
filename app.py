@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import requests
 from datetime import datetime
 import os
@@ -9,6 +10,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 def send_flipkart_otp(phone_number):
     """
@@ -73,7 +75,7 @@ def home():
     return jsonify({
         "success": True,
         "status": "active",
-        "message": "Flipkart OTP API is running",
+        "message": "Flipkart OTP API is running on Render",
         "endpoints": {
             "send_otp": {
                 "method": "GET",
@@ -81,7 +83,7 @@ def home():
                 "description": "Send OTP to phone number"
             }
         },
-        "example": "https://your-domain.vercel.app/spam?number=9876543210",
+        "example": "https://your-app.onrender.com/spam?number=9876543210",
         "timestamp": datetime.now().isoformat()
     })
 
@@ -199,10 +201,10 @@ def health():
         "success": True,
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "service": "Flipkart OTP API"
+        "service": "Flipkart OTP API on Render"
     })
 
-# For local development
+# For Render deployment
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    port = int(os.environ.get('PORT', 10000))  # Render uses PORT environment variable
+    app.run(host='0.0.0.0', port=port, debug=False)  # debug=False for production
